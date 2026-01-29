@@ -1,11 +1,11 @@
 workflows:
   android-workflow:
-    name: Build Android App
+    name: Build Jarvis APK
     max_build_duration: 60
     environment:
       flutter: stable
-      xcode: latest
-      cocoapods: default
+      vars:
+        JARVIS_APP_NAME: "Jarvis APK"
     scripts:
       - name: Install dependencies
         script: |
@@ -15,3 +15,7 @@ workflows:
           flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
