@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:vibration/vibration.dart';
@@ -31,10 +31,24 @@ class JarvisHome extends StatefulWidget {
 }
 
 class _JarvisHomeState extends State<JarvisHome> {
+@override
+void initState() {
+  super.initState();
+  requestPermissions();
+}
   final TextEditingController controller = TextEditingController();
   final Battery battery = Battery();
   String result = "";
 
+
+Future<void> requestPermissions() async {
+  await [
+    Permission.storage,
+    Permission.manageExternalStorage,
+    Permission.camera,
+    Permission.location,
+  ].request();
+}
   // ================= MAIN JARVIS ==================
   Future<void> runJarvis(String cmd) async {
     cmd = cmd.trim().toLowerCase();
