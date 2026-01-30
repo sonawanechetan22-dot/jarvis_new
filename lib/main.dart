@@ -2,17 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:vibration/vibration.dart';
 import 'package:torch_light/torch_light.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 
 void main() {
   runApp(const JarvisApp());
 }
-
-// ================= APP =================
 
 class JarvisApp extends StatelessWidget {
   const JarvisApp({super.key});
@@ -25,8 +23,6 @@ class JarvisApp extends StatelessWidget {
     );
   }
 }
-
-// ================= HOME =================
 
 class JarvisHome extends StatefulWidget {
   const JarvisHome({super.key});
@@ -41,8 +37,6 @@ class _JarvisHomeState extends State<JarvisHome> {
 
   String result = "";
 
-  // ================= INIT =================
-
   @override
   void initState() {
     super.initState();
@@ -52,79 +46,57 @@ class _JarvisHomeState extends State<JarvisHome> {
   // ================= PERMISSIONS =================
 
   Future<void> requestPermissions() async {
-    await [
-      Permission.storage,
-      Permission.manageExternalStorage,
-      Permission.camera,
-      Permission.location,
-      Permission.photos,
-      Permission.videos,
-    ].request();
+    await Permission.storage.request();
+    await Permission.manageExternalStorage.request();
   }
 
-  // ================= MAIN LOGIC =================
+  // ================= MAIN =================
 
   Future<void> runJarvis(String cmd) async {
     cmd = cmd.trim().toLowerCase();
 
     String response = "";
 
-    // WIFI (Android Restricted)
-    if (cmd.contains("wifi")) {
-      response = "WiFi control Android मध्ये परवानगी नाही";
-    }
-
-    // BATTERY
-    else if (cmd.contains("battery") || cmd.contains("बॅटरी")) {
+    // Battery
+    if (cmd.contains("battery")) {
       int level = await battery.batteryLevel;
-      response = "Battery $level% आहे";
+      response = "Battery $level%";
     }
 
-    // VIBRATE
-    else if (cmd.contains("vibrate") || cmd.contains("वायब्रेट")) {
+    // Vibrate
+    else if (cmd.contains("vibrate")) {
       if (await Vibration.hasVibrator() ?? false) {
-        Vibration.vibrate(duration: 1000);
-        response = "Phone vibrate झाला";
-      } else {
-        response = "Vibrator नाही";
+        Vibration.vibrate(duration: 800);
+        response = "Vibrating";
       }
     }
 
-    // FLASH ON
+    // Flash ON
     else if (cmd.contains("flash on")) {
-      try {
-        await TorchLight.enableTorch();
-        response = "Flash ON";
-      } catch (e) {
-        response = "Flash error";
-      }
+      await TorchLight.enableTorch();
+      response = "Flash ON";
     }
 
-    // FLASH OFF
+    // Flash OFF
     else if (cmd.contains("flash off")) {
-      try {
-        await TorchLight.disableTorch();
-        response = "Flash OFF";
-      } catch (e) {
-        response = "Flash error";
-      }
+      await TorchLight.disableTorch();
+      response = "Flash OFF";
     }
 
-    // IMAGE
-    else if (cmd.contains("open image")) {
-      String key = cmd.split("open image").last.trim();
-      response = await searchImage(key);
+    // Image
+    else if (cmd.startsWith("open image")) {
+      String key = cmd.replaceFirst("open image", "").trim();
+      response = await openImage(key);
     }
 
-    // VIDEO
-    else if (cmd.contains("open video")) {
-      String key = cmd.split("open video").last.trim();
-      response = await searchVideo(key);
+    // Video
+    else if (cmd.startsWith("open video")) {
+      String key = cmd.replaceFirst("open video", "").trim();
+      response = await openVideo(key);
     }
 
-    // UNKNOWN
     else {
-      response = "Command समजला नाही";
+      response = "Command not recognized";
     }
 
     await saveLog(cmd, response);
@@ -134,21 +106,25 @@ class _JarvisHomeState extends State<JarvisHome> {
     });
   }
 
-  // ================= IMAGE SEARCH =================
+  // ================= IMAGE =================
 
-  Future<String> searchImage(String key) async {
-    Directory dir = Directory("/storage/emulated/0");
+  Future<String> openImage(String key) async {
+    if (!await Permission.manageExternalStorage.isGranted) {
+      return "Storage permission not granted";
+    }
 
-    await for (var f in dir.list(recursive: true)) {
-      if (f is File) {
-        String name = f.path.toLowerCase();
+    final dir = Directory("/storage/emulated/0");
+
+    await for (var file in dir.list(recursive: true)) {
+      if (file is File) {
+        final name = file.path.toLowerCase();
 
         if (name.contains(key.toLowerCase()) &&
             (name.endsWith(".jpg") ||
-                name.endsWith(".jpeg") ||
-                name.endsWith(".png"))) {
+                name.endsWith(".png") ||
+                name.endsWith(".jpeg"))) {
 
-          await OpenFilex.open(f.path);
+          await OpenFilex.open(file.path);
 
           return "Image opened";
         }
@@ -158,24 +134,26 @@ class _JarvisHomeState extends State<JarvisHome> {
     return "Image not found";
   }
 
-  // ================= VIDEO SEARCH =================
+  // ================= VIDEO =================
 
-  Future<String> searchVideo(String key) async {
-    Directory dir = Directory("/storage/emulated/0");
+  Future<String> openVideo(String key) async {
+    if (!await Permission.manageExternalStorage.isGranted) {
+      return "Storage permission not granted";
+    }
 
-    await for (var f in dir.list(recursive: true)) {
-      if (f is File) {
-        String name = f.path.toLowerCase();
+    final dir = Directory("/storage/emulated/0");
+
+    await for (var file in dir.list(recursive: true)) {
+      if (file is File) {
+        final name = file.path.toLowerCase();
 
         if (name.contains(key.toLowerCase()) &&
             (name.endsWith(".mp4") ||
                 name.endsWith(".mkv") ||
                 name.endsWith(".avi") ||
-                name.endsWith(".mov") ||
-                name.endsWith(".3gp") ||
-                name.endsWith(".webm"))) {
+                name.endsWith(".mov"))) {
 
-          await OpenFilex.open(f.path);
+          await OpenFilex.open(file.path);
 
           return "Video opened";
         }
@@ -185,16 +163,15 @@ class _JarvisHomeState extends State<JarvisHome> {
     return "Video not found";
   }
 
-  // ================= SAVE LOG =================
+  // ================= LOG =================
 
   Future<void> saveLog(String cmd, String res) async {
-    Directory dir = await getExternalStorageDirectory() ??
-        Directory("/storage/emulated/0");
+    final dir = await getExternalStorageDirectory();
 
-    File file = File("${dir.path}/jarvis.txt");
+    final file = File("${dir!.path}/jarvis.txt");
 
     await file.writeAsString(
-      "Command: $cmd\nResponse: $res\n\n",
+      "$cmd => $res\n",
       mode: FileMode.append,
     );
   }
@@ -217,13 +194,12 @@ class _JarvisHomeState extends State<JarvisHome> {
         child: Column(
           children: [
 
-            // INPUT
             TextField(
               controller: controller,
               style: const TextStyle(color: Colors.white),
 
               decoration: const InputDecoration(
-                hintText: "Type command...",
+                hintText: "Enter command",
                 hintStyle: TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(),
               ),
@@ -231,7 +207,6 @@ class _JarvisHomeState extends State<JarvisHome> {
 
             const SizedBox(height: 15),
 
-            // BUTTON
             SizedBox(
               width: double.infinity,
 
@@ -244,9 +219,8 @@ class _JarvisHomeState extends State<JarvisHome> {
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 20),
 
-            // RESULT
             Text(
               result,
 
@@ -255,6 +229,7 @@ class _JarvisHomeState extends State<JarvisHome> {
                 fontSize: 18,
               ),
             ),
+
           ],
         ),
       ),
